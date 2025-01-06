@@ -1,0 +1,6 @@
+elasticsearch==7.9.1
+kafka-python
+pytest
+confluent-kafka
+pytz
+fhir.resources
