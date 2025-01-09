@@ -1,11 +1,15 @@
 from confluent_kafka import Consumer, KafkaException, KafkaError
 import json
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Configuration du consommateur Kafka
 conf = {
-    'bootstrap.servers': 'localhost:9092',  # Adresse du serveur Kafka
-    'group.id': 'python-consumer',          # ID du groupe de consommateurs
-    'auto.offset.reset': 'earliest'         # Consommer les messages depuis le début si le consommateur est nouveau
+    'bootstrap.servers': 'kafka1:29092',  # Utiliser le nom du service Docker
+    'group.id': 'python-consumer',
+    'auto.offset.reset': 'earliest'
 }
 
 # Créer un consommateur Kafka
@@ -18,33 +22,28 @@ consumer.subscribe([topic])
 # Fonction pour traiter les messages reçus
 def process_message(message):
     try:
-        # Convertir le message JSON
         data = json.loads(message)
-        print("Message reçu :")
-        print(json.dumps(data, indent=4))  # Afficher le message formaté
+        logging.info(f"Message reçu : {json.dumps(data, indent=4)}")
     except json.JSONDecodeError as e:
-        print(f"Erreur de décodage JSON : {e}")
+        logging.error(f"Erreur de décodage JSON : {e}")
 
 # Consommer des messages en boucle
 try:
+    logging.info("Démarrage du consommateur Kafka.")
     while True:
-        # Lire un message
-        msg = consumer.poll(timeout=1.0)  # Temps d'attente pour un message
-
+        msg = consumer.poll(timeout=1.0)
         if msg is None:
-            continue  # Aucun message reçu, continuer la boucle
-        elif msg.error():
+            continue
+        if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                print(f"Atteint la fin de la partition {msg.partition} à l'offset {msg.offset}")
+                logging.info(f"Fin de la partition : {msg.partition()}")
             else:
                 raise KafkaException(msg.error())
         else:
-            # Si un message est reçu, traiter le message
             process_message(msg.value().decode('utf-8'))
 
 except KeyboardInterrupt:
-    print("Arrêt du consommateur")
-
+    logging.info("Arrêt du consommateur Kafka.")
 finally:
-    # Fermer le consommateur proprement
     consumer.close()
+    logging.info("Consommateur Kafka arrêté.")

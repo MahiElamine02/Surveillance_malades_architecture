@@ -3,20 +3,21 @@ import json
 from datetime import datetime, timedelta
 import random
 import pytz
-from fhir.resources.observation import Observation  # Import FHIR Observation class
+from fhir.resources.observation import Observation
+import logging
 
-# Fonction pour créer une observation de pression artérielle (systolique et diastolique)
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Fonction pour créer une observation de pression artérielle
 def create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_pressure, date):
-    # Assurez-vous que 'date' est 'timezone aware'
     if date.tzinfo is None:
-        date = date.astimezone(pytz.UTC)  # Assurez-vous que la date est UTC ou ajustez selon votre besoin
-    
+        date = date.astimezone(pytz.UTC)
+
     observation_data = {
         "resourceType": "Observation",
         "id": "blood-pressure",
-        "meta": {
-            "profile": ["http://hl7.org/fhir/StructureDefinition/vitalsigns"]
-        },
+        "meta": {"profile": ["http://hl7.org/fhir/StructureDefinition/vitalsigns"]},
         "status": "final",
         "category": [
             {
@@ -28,16 +29,6 @@ def create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_p
                     }
                 ],
                 "text": "Signes vitaux"
-            },
-            {
-                "coding": [
-                    {
-                        "system": "http://loinc.org",
-                        "code": "85354-9",
-                        "display": "Blood pressure"
-                    }
-                ],
-                "text": "Blood pressure"
             }
         ],
         "code": {
@@ -50,10 +41,8 @@ def create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_p
             ],
             "text": "Blood pressure"
         },
-        "subject": {
-            "reference": f"Patient/{patient_id}"
-        },
-        "effectiveDateTime": date.isoformat(),  # Utilisation de la date au format ISO
+        "subject": {"reference": f"Patient/{patient_id}"},
+        "effectiveDateTime": date.isoformat(),
         "component": [
             {
                 "code": {
@@ -94,68 +83,53 @@ def create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_p
         ]
     }
 
-    # Créer l'objet Observation
     observation = Observation(**observation_data)
-
-    # Convertir l'objet en JSON
     return observation.json(indent=4)
-
-# Liste des 200 patients à générer
-patients = [{"id": str(i), "name": f"Patient {i}"} for i in range(1, 201)]
-
-# Liste pour stocker toutes les observations
-all_observations = []
-
-# Générer des observations pour chaque patient
-for patient in patients:
-    patient_id = patient["id"]
-    start_date = datetime.now(pytz.UTC) - timedelta(days=30)  # Début il y a 30 jours avec timezone UTC
-    end_date = datetime.now(pytz.UTC)
-
-    # Générer 30 observations pour chaque patient
-    current_date = start_date
-    for _ in range(30):  # 30 observations par patient
-        # Générer des valeurs réalistes de pression artérielle
-        systolic_pressure = random.randint(70, 190)  # Pression systolique entre 70 et 190 mmHg
-        diastolic_pressure = random.randint(60, 130)  # Pression diastolique entre 60 et 130 mmHg
-
-        # Créer l'observation JSON pour la pression artérielle
-        observation_json = create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_pressure, current_date)
-        
-        # Ajouter l'observation à la liste
-        all_observations.append(observation_json)
-        
-        # Avancer de 6 heures pour chaque observation
-        current_date += timedelta(hours=6)
 
 # Configuration du producteur Kafka
 conf = {
-    'bootstrap.servers': 'localhost:9092',  # Adresse du serveur Kafka
+    'bootstrap.servers': 'kafka1:29092',  # Utiliser le nom du service Docker
     'client.id': 'python-producer'
 }
 
-# Fonction de callback pour la gestion des erreurs
+# Callback pour la gestion des erreurs
 def delivery_report(err, msg):
     if err is not None:
-        print(f"Message delivery failed: {err}")
+        logging.error(f"Message delivery failed: {err}")
     else:
-        print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
+        logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 # Créer un producteur Kafka
 producer = Producer(conf)
 
 # Fonction pour publier un message dans Kafka
 def publish_message(topic, message):
-    # Utilisation de la fonction produce() pour envoyer un message au topic
-    producer.produce(topic, key="fhir-observation", value=message, callback=delivery_report)
-    producer.flush()  # Attendre que tous les messages soient envoyés
+    try:
+        producer.produce(topic, key="fhir-observation", value=message, callback=delivery_report)
+        producer.flush()
+    except Exception as e:
+        logging.error(f"Erreur lors de la publication du message : {e}")
+
+# Générer des observations pour 200 patients
+patients = [{"id": str(i), "name": f"Patient {i}"} for i in range(1, 201)]
+all_observations = []
+
+for patient in patients:
+    patient_id = patient["id"]
+    start_date = datetime.now(pytz.UTC) - timedelta(days=30)
+    end_date = datetime.now(pytz.UTC)
+
+    current_date = start_date
+    for _ in range(30):
+        systolic_pressure = random.randint(70, 190)
+        diastolic_pressure = random.randint(60, 130)
+        observation_json = create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_pressure, current_date)
+        all_observations.append(observation_json)
+        current_date += timedelta(hours=6)
 
 # Publier les observations dans Kafka
-topic = "fhir_observations"  # Nom du topic Kafka
-
-# Publier chaque observation générée dans Kafka
+topic = "fhir_observations"
 for observation_json in all_observations:
     publish_message(topic, observation_json)
 
-# Afficher un message confirmant que tout a été publié
-print(f"Tous les messages ont été envoyés au topic '{topic}'.")
+logging.info(f"Tous les messages ont été envoyés au topic '{topic}'.")

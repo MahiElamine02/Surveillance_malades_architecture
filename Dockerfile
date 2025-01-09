@@ -1,28 +1,13 @@
-# Utilisation d'une image de base légère
+# Utiliser une image de base Python officielle
 FROM python:3.10-slim
-
-# Installer Netcat (nc) en tant que root
-RUN apt-get update && apt-get install -y netcat && rm -rf /var/lib/apt/lists/*
-
-# Définir un utilisateur non root
-RUN useradd -m myuser
+# Définir le répertoire de travail dans le conteneur
 WORKDIR /app
-USER myuser
 
-# Copier et installer les dépendances
-COPY --chown=myuser:myuser requirements.txt .
+# Copier les fichiers nécessaires dans le conteneur
+COPY producer.py consumer.py anomalies_traitement.py requirements.txt ./
+
+# Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier les scripts Python et le script shell
-COPY --chown=myuser:myuser producer.py .
-COPY --chown=myuser:myuser consumer.py .
-COPY --chown=myuser:myuser anomalies_traitement.py .
-COPY --chown=myuser:myuser start.sh .
-COPY --chown=myuser:myuser wait-for-it.sh .
-
-# Rendre les scripts shell exécutables
-RUN chmod +x start.sh
-RUN chmod +x wait-for-it.sh
-
-# Définir la commande par défaut
-CMD ["./start.sh"]
+# Définir la commande par défaut (peut être surchargée dans docker-compose)
+CMD ["python", "producer.py"]

@@ -1,17 +1,5 @@
-version: "3"
+version: '3'
 services:
-  python-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: python-app
-    environment:
-      BOOTSTRAP_SERVERS: kafka1:29092  # Utilise le nom du service Kafka
-    networks:
-      - net_kafka_nifi
-    depends_on:
-      - kafka1
-
   zookeeper:
     image: confluentinc/cp-zookeeper:6.2.0
     container_name: zookeeper
@@ -21,7 +9,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     networks:
-      - net_kafka_nifi
+      - kafka_network
 
   kafka1:
     image: confluentinc/cp-kafka:6.2.0
@@ -39,30 +27,22 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     networks:
-      - net_kafka_nifi
+      - kafka_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: kafka-ui
     ports:
       - "8080:8080"
-    restart: always
-    depends_on:
-      - zookeeper
-      - kafka1
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka1:29092"
       KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper:2181"
-      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - kafka1
     networks:
-      - net_kafka_nifi
+      - kafka_network
 
   elasticsearch:
     image: elasticsearch:7.9.1
@@ -70,40 +50,69 @@ services:
     environment:
       - cluster.name=docker-cluster
       - bootstrap.memory_lock=true
-      - action.destructive_requires_name=true
-      - http.cors.enabled=true
-      - http.cors.allow-origin=*
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     ports:
       - "9200:9200"
       - "9300:9300"
     networks:
-      - net_kafka_nifi
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
+      - kafka_network
 
   kibana:
     image: kibana:7.9.1
     container_name: kibana
     environment:
       I18N_LOCALE: fr-FR
-    restart: always
     ports:
       - "5601:5601"
-    networks:
-      - net_kafka_nifi
     depends_on:
       - elasticsearch
+    networks:
+      - kafka_network
+
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: producer
+    command: ["python", "producer.py"]  # Exécute le script producer.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+    depends_on:
+      - kafka1
+    networks:
+      - kafka_network
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: consumer
+    command: ["python", "consumer.py"]  # Exécute le script consumer.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+    depends_on:
+      - kafka1
+    networks:
+      - kafka_network
+
+  nomaly-detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anomaly-detector
+    command: ["python", "anomalies_traitement.py"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+      ELASTICSEARCH_HOST: elasticsearch:9200
+    volumes:
+      - ./normal_data:/app/normal_data  # Monte le dossier normal_data
+    depends_on:
+    - kafka1
+    - elasticsearch
+    networks:
+    - kafka_network
 
 networks:
-  net_kafka_nifi:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.21.0.0/16
+  kafka_network:
+    driver: bridge
