@@ -42,6 +42,8 @@ def categorize_blood_pressure(systolic, diastolic):
         return "Hypertension Stage 2"
     elif systolic > 180 or diastolic > 120:
         return "Hypertensive Crisis"
+    elif systolic > 180 and diastolic > 120:
+        return "Hypertensive Crisis"
     return "Uncategorized"
 
 # Fonction pour traiter une observation

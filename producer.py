@@ -111,21 +111,31 @@ def publish_message(topic, message):
         logging.error(f"Erreur lors de la publication du message : {e}")
 
 # Générer des observations pour 200 patients
-patients = [{"id": str(i), "name": f"Patient {i}"} for i in range(1, 201)]
+patients = [{"id": str(i), "name": f"Patient {i}"} for i in range(1, 201)]  # 200 patients
 all_observations = []
+
+# Log pour vérifier le nombre de patients
+logging.info(f"Nombre de patients : {len(patients)}")
 
 for patient in patients:
     patient_id = patient["id"]
-    start_date = datetime.now(pytz.UTC) - timedelta(days=30)
+    start_date = datetime.now(pytz.UTC) - timedelta(days=30)  # Période de 30 jours
     end_date = datetime.now(pytz.UTC)
 
+    # Log pour vérifier les dates de début et de fin
+    logging.info(f"Traitement du patient {patient_id} - Date de début : {start_date}, Date de fin : {end_date}")
+
     current_date = start_date
-    for _ in range(30):
-        systolic_pressure = random.randint(70, 190)
-        diastolic_pressure = random.randint(60, 130)
-        observation_json = create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_pressure, current_date)
-        all_observations.append(observation_json)
-        current_date += timedelta(hours=6)
+    for day in range(30):  # 30 jours
+        for observation_count in range(4):  # 4 observations par jour (toutes les 6 heures)
+            systolic_pressure = random.randint(70, 190)
+            diastolic_pressure = random.randint(60, 130)
+            observation_json = create_blood_pressure_observation(patient_id, systolic_pressure, diastolic_pressure, current_date)
+            all_observations.append(observation_json)
+            current_date += timedelta(hours=6)  # Intervalle de 6 heures
+
+# Log pour vérifier le nombre total d'observations générées
+logging.info(f"Nombre total d'observations générées : {len(all_observations)}")
 
 # Publier les observations dans Kafka
 topic = "fhir_observations"

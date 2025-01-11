@@ -8,6 +8,3 @@ COPY producer.py consumer.py anomalies_traitement.py requirements.txt ./
 
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Définir la commande par défaut (peut être surchargée dans docker-compose)
-CMD ["python", "producer.py"]
