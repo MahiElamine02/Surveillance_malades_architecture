@@ -6,9 +6,9 @@ services:
     container_name: producer
     command: ["python", "producer.py"]
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  # Connexion à Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  
     networks:
-      - kafka_net_kafka_nifi  # Réseau de Kafka
+      - kafka_net_kafka_nifi  
 
   consumer:
     build:
@@ -17,9 +17,9 @@ services:
     container_name: consumer
     command: ["python", "consumer.py"]
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  # Connexion à Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  
     networks:
-      - kafka_net_kafka_nifi  # Réseau de Kafka
+      - kafka_net_kafka_nifi  
 
   anomaly-detector:
     build:
@@ -28,16 +28,16 @@ services:
     container_name: anomaly-detector
     command: ["python", "anomalies_traitement.py"]
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  # Connexion à Kafka
-      ELASTICSEARCH_HOST: elasticsearch:9200  # Connexion à Elasticsearch
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092  
+      ELASTICSEARCH_HOST: elasticsearch:9200  
     volumes:
       - ./normal_data:/app/normal_data
     networks:
-      - kafka_net_kafka_nifi  # Réseau de Kafka
-      - elasticsearch_net_es  # Réseau d'Elasticsearch
+      - kafka_net_kafka_nifi  
+      - elasticsearch_net_es  
 
 networks:
   kafka_net_kafka_nifi:
-    external: true  # Utilise le réseau Docker existant pour Kafka
+    external: true  
   elasticsearch_net_es:
-    external: true  # Utilise le réseau Docker existant pour Elasticsearch
+    external: true  

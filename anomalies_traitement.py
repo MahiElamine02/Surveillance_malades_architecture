@@ -4,21 +4,21 @@ import json
 import os
 import logging
 
-# Configuration du logging
+#configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configuration du consommateur Kafka
+#configuration du consommateur Kafka
 kafka_conf = {
-    'bootstrap.servers': 'kafka1:29092',  # Utiliser le nom du service Docker
+    'bootstrap.servers': 'kafka1:29092',  
     'group.id': 'anomaly-detection-group',
     'auto.offset.reset': 'earliest'
 }
 
-# Configuration d'Elasticsearch
+#configuration d'Elasticsearch
 es = Elasticsearch(["http://elasticsearch:9200"])
 es_index = "fhir_observations_anomalies"
 
-# Vérifier la connexion à Elasticsearch
+#vérifier la connexion à Elasticsearch
 try:
     es.info()
     logging.info("Connexion à Elasticsearch réussie.")
@@ -26,11 +26,11 @@ except es_exceptions.ConnectionError as e:
     logging.error(f"Erreur de connexion à Elasticsearch : {e}")
     exit(1)
 
-# Dossier pour sauvegarder les données normales
+#dossier pour sauvegarder les données normales
 normal_data_dir = "./normal_data"
 os.makedirs(normal_data_dir, exist_ok=True)
 
-# Fonction pour catégoriser la pression artérielle
+#fonction pour catégoriser la pression artérielle
 def categorize_blood_pressure(systolic, diastolic):
     if systolic < 120 and diastolic < 80:
         return "Normal"
@@ -46,7 +46,7 @@ def categorize_blood_pressure(systolic, diastolic):
         return "Hypertensive Crisis"
     return "Uncategorized"
 
-# Fonction pour traiter une observation
+#fonction pour traiter une observation
 def process_observation(observation_json):
     try:
         observation = json.loads(observation_json)
@@ -58,9 +58,9 @@ def process_observation(observation_json):
             for component in observation["component"]:
                 code = component["code"]["coding"][0]["code"]
                 value = component["valueQuantity"]["value"]
-                if code == "8480-6":  # Systolic blood pressure
+                if code == "8480-6":  
                     systolic = value
-                elif code == "8462-4":  # Diastolic blood pressure
+                elif code == "8462-4":  
                     diastolic = value
 
             if systolic is not None and diastolic is not None:
@@ -81,7 +81,7 @@ def process_observation(observation_json):
         logging.error(f"Erreur de traitement : {e}")
     return None
 
-# Fonction pour envoyer les anomalies à Elasticsearch
+#fonction pour envoyer les anomalies à Elasticsearch
 def send_to_elasticsearch(data):
     try:
         es.index(index=es_index, body=data)
@@ -89,7 +89,7 @@ def send_to_elasticsearch(data):
     except Exception as e:
         logging.error(f"Erreur d'envoi à Elasticsearch : {e}")
 
-# Consommateur Kafka
+#consommateur Kafka
 consumer = Consumer(kafka_conf)
 consumer.subscribe(["fhir_observations"])
 

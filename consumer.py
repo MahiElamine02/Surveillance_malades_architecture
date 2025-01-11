@@ -2,24 +2,24 @@ from confluent_kafka import Consumer, KafkaException, KafkaError
 import json
 import logging
 
-# Configuration du logging
+#configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configuration du consommateur Kafka
+#configuration du consommateur Kafka
 conf = {
-    'bootstrap.servers': 'kafka1:29092',  # Utiliser le nom du service Docker
+    'bootstrap.servers': 'kafka1:29092',  
     'group.id': 'python-consumer',
     'auto.offset.reset': 'earliest'
 }
 
-# Créer un consommateur Kafka
+#créer un consommateur Kafka
 consumer = Consumer(conf)
 
-# S'abonner au topic
+#s'abonner au topic
 topic = "fhir_observations"
 consumer.subscribe([topic])
 
-# Fonction pour traiter les messages reçus
+#fonction pour traiter les messages reçus
 def process_message(message):
     try:
         data = json.loads(message)
@@ -27,7 +27,7 @@ def process_message(message):
     except json.JSONDecodeError as e:
         logging.error(f"Erreur de décodage JSON : {e}")
 
-# Consommer des messages en boucle
+#consommer des messages en boucle
 try:
     logging.info("Démarrage du consommateur Kafka.")
     while True:
